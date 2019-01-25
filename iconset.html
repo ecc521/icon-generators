@@ -1,0 +1,286 @@
+<script src="https://ecc521.github.io/stuff/libs/JSZip.js"></script>
+<input type="file" accept="image/*" id="fileinput">
+
+
+<body></body>
+
+
+<script>    
+
+    
+
+let img = function(canvas) {
+    //Also accepts any type of imagedata that can be drawn directly to canvas
+    
+    this._canvas = canvas    //Don't make this truely private - there may be cases people want to access it
+    
+    
+    this.replace = function(callback) {
+        let canvas = this._canvas
+        let context = canvas.getContext("2d")
+        let imgdata = context.getImageData(0,0,canvas.width,canvas.height)
+        let data = imgdata.data  
+        
+        for (let c=0;c<data.length;c+=4) {
+            let arr = callback(data[c],data[c+1],data[c+2],data[c+3])
+            data[c] = arr[0]
+            data[c+1] = arr[1]
+            data[c+2] = arr[2]
+            data[c+3] = arr[3]
+        }
+        
+        let newcanvas = this.blankcanvas()
+        newcanvas.getContext("2d").putImageData(imgdata,0,0)
+        return new img(newcanvas)
+    }
+    
+    
+    
+    
+    //Options is an object
+    //Format is as follows
+    
+    //method: either "stretch" or "pad"
+    //Stretch means to stretch the image out to make it fit the dimensions
+    //Pad means to scale up the image until one dimension is the size it is supposed to be, then
+    //to use up the remaining space by filling in with the transparent, or the specified color, equally on both sides
+
+    //(Only if pad selected)
+    //color: css color code. Defaults to transparent
+    
+    
+    this.resize = function(width, height, options) {
+                
+        let imgwidth = this._canvas.width,
+            imgheight = this._canvas.height,
+            method = options.method.trim().toLowerCase()        
+        
+        //Generate the new canvas
+        let canvas = this.blankcanvas(width, height)
+        let context = canvas.getContext("2d")
+        
+        //Perform the resizing
+        if (method === "pad") {
+            //Calculate the ratio that we can enlarge without stretching
+            let ratio = Math.min(width/imgwidth, height/imgheight)
+            let drawwidth = imgwidth * ratio
+            let drawheight = imgheight * ratio
+            let xpad = (width-drawwidth)/2
+            let ypad = (height-drawheight)/2
+            
+            context.drawImage(this._canvas, 0, 0, imgwidth, imgheight, xpad, ypad, drawwidth, drawheight);            
+        }
+        else if (method === "stretch") {
+            context.drawImage(this._canvas, 0, 0, imgwidth, imgheight, 0, 0, width, height);
+        }
+            
+        
+
+        //context.drawImage(image, 0, 0, this._canvas.width, this._canvas.height, startdrawx, startdrawy, widthtodraw, heighttodraw);
+
+       
+        
+        return new img(canvas)
+    }
+    
+    
+    //Rotate the canvas. Rotates around center, or optionally, the point x,y
+    //Note - Some of the image may be cut. Consider adding protection against this.
+    this.rotate = function(degrees, x, y) {
+        
+        if (typeof x === "undefined") {
+        x = this._canvas.width/2
+        }
+        if (typeof y === "undefined") {
+        y = this._canvas.width/2
+        }        
+        
+        let canvas = this.blankcanvas()
+        let context = canvas.getContext("2d")
+        
+
+        context.save()
+        context.translate(x,y)
+        context.rotate(degrees * Math.PI / 180)
+        context.translate(-x,-y)
+        context.drawImage(this._canvas, 0, 0)
+        context.restore() //Make sure that the coordinite system remains as it does in a blank canvas
+        
+        return new img(canvas);
+    }
+    
+    
+    
+    
+    
+    //Return a copy of the canvas
+    this.blankcanvas = function(x,y) {
+        let blank = document.createElement("canvas")
+        blank.width = x||this._canvas.width
+        blank.height = y||this._canvas.height
+                
+        return blank;
+    }
+   
+}
+
+
+
+
+
+async function generateicons() {
+    let files = document.getElementById("fileinput").files
+    let file = files[0]
+    
+    let buffer = await new Promise(function(resolve,reject) {
+        let reader = new FileReader()
+        reader.onload = function() {resolve(reader.result)}
+        reader.onerror = reject
+        reader.readAsArrayBuffer(file)
+    })
+    console.log(buffer)
+    let blob = new Blob([buffer], {
+        type: file.type
+    })
+    console.log(blob)
+    let url = URL.createObjectURL(blob)
+    console.log(url)
+    let image = document.createElement("img")
+    console.log("here")
+    await new Promise(function(resolve, reject) {
+        image.onload = resolve
+        image.onerror = reject
+        image.src = url
+    })
+    console.log("here")
+    
+    console.log("here")
+    let original = new img(image)
+    
+    
+    let icons = [
+        {
+            width: 1024,
+            height: 1024,
+            scale: 1
+        },
+        {
+            width: 128,
+            height: 128,
+            scale: 2
+        },
+        {
+            width: 16,
+            height: 16,
+            scale: 2
+        },
+        {
+            width: 256,
+            height: 256,
+            scale: 1
+        },
+        {
+            width: 256,
+            height: 256,
+            scale: 2
+        },
+        {
+            width: 32,
+            height: 32,
+            scale: 1
+        },
+        {
+            width: 32,
+            height: 32,
+            scale: 2
+        },    
+        {
+            width: 512,
+            height: 512,
+            scale: 1
+        },
+        {
+            width: 512,
+            height: 512,
+            scale: 2
+        },
+        {
+            width: 64,
+            height: 64,
+            scale: 1
+        }
+    ]
+    
+    
+    console.log("here")
+    let blobs = []
+    for (let i=0;i<icons.length;i++) {
+        let icon = icons[i]
+        
+        let resized = original.resize(icon.width, icon.height, {
+            method:"pad"
+        })
+        
+        let canvas = resized._canvas
+        let blob = await new Promise(function(resolve,reject) {
+            canvas.toBlob(resolve, "image/png")
+        })
+        
+        blobs.push(blob)
+         
+    }
+    
+    console.log("here")
+    
+        var zip = new JSZip();
+        var folder = zip.folder("icons.iconset");
+
+        for (let c=0;c<blobs.length;c++) {
+            let icon = icons[c]
+            let name = "icon_" + icon.width + "x" + icon.height
+            if (icon.scale === 2) {
+                name += "@2x"
+            }
+            folder.file(name + ".png", blobs[c]);
+        }     
+        
+    console.log("here")
+        
+        let content = await folder.generateAsync({
+            type: "blob",
+            compression: "DEFLATE",
+            compressionOptions: {
+                level: 9
+            }
+        })
+    console.log("here")
+
+        var link = document.createElement("a");
+        document.body.appendChild(link);
+
+        link.download = "icons.zip"
+        link.href = URL.createObjectURL(content);
+        link.click();
+
+        document.body.removeChild(link);
+    
+    console.log("here")
+    
+}
+
+
+
+
+
+
+document.getElementById("fileinput").addEventListener("change", generateicons)
+
+
+    
+    
+    
+
+    
+</script>
+
+

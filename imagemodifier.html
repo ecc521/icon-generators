@@ -1,0 +1,441 @@
+<p>Click Browse and choose your images, or drag and drop your images here</p>
+
+<div id="inputselector">
+    <button class="selected" id="computer">From your Computer</button>
+    <button id="url">By URL</button>
+</div>
+
+<div id="filedrop">
+    <p>Drag and Drop Images here, OR</p>
+    <input type="file" id="fileinput" multiple accept="image/*">
+    <label id="fileinputlabel" for="fileinput">Browse for Images</label>
+</div>
+
+<div id="urlselector">
+    <p>Select images by URL</p>
+    <input type="text" value="" placeholder="URL Goes Here. Remeber http:// or https://" id="fileurl">
+    <button id="submiturl" disabled>Add Image</button>
+    <img id="urlpreview" crossorigin="anonymous">
+    <p>Note: Browsers may block some images from being loaded due to CORS security.</p>
+</div>
+
+<div id="thumbnails"></div>
+
+<script>
+function GetId(n){return document.getElementById(n)}
+
+let imagelist = []   
+    
+ 
+    
+async function newfiles(files) {
+    //If we got a list of files, iterate through the list recursively.
+    if (files instanceof FileList) {
+        for (var i=0;i<files.length;i++) {
+            newfiles(files[i])
+        }
+    }
+    else {    
+    //We now have a single file or image element. createcanvas handles those for us 
+    let result = await createcanvas(files)
+    let passed = 1
+    //Check if the image is in imagelist
+    let props = ["name","size","type","lastmodified"] //List of properties to check
+    //Iterate through all current images
+    for (let i=0;i<imagelist.length;i++) {
+        let pic = imagelist[i]
+        //Iterate through each tested property
+        let c;
+        for (c=0;c<props.length;c++) {
+            let nm = props[c]
+            if (pic[nm] != result[nm]) {
+                break; //One property did not match. Not equal in both source and image
+            }
+            else {console.log(pic[nm] + "\n" + result[nm])}
+        }
+        //Check if the images were equal for all tested values
+        if (c === props.length) {
+            passed = 0
+            break;
+        }  
+    }
+    //Confirm before adding duplicates
+    if (passed === 1 || confirm(result.name + " is already selected. Would you like to add it again?")) {
+        imagelist.push(result)
+        //console.log(imagelist)
+        addthumbnail(result)
+    }
+
+    
+    }
+}
+    
+    
+    
+    
+let addthumbnail = async function(imgobj) {
+    
+    let p = document.createElement("img")
+    p.className = "thumbnail"
+    
+    let cnv = imgobj.canvas
+    //toBlob is fastest
+    if (cnv.toBlob || cnv.msToBlob) {
+    let blob = await new Promise(function(resolve, reject){
+        if (cnv.toBlob) {
+        cnv.toBlob(resolve, imgobj.type)
+        }
+        else {
+        cnv.msToBlob(resolve, imgobj.type)//IE 10
+        }
+    })
+    p.src = URL.createObjectURL(blob)
+    }
+    else {
+    //Fallback
+    p.src = imgobj.canvas.toDataURL(imgobj.type)
+    }
+    
+    let s = document.createElement("div")
+    s.className = "thumbnailcontainer"
+    
+    let cont = document.createElement("div")
+    cont.className = "previewcontainer"
+    
+    let txt = document.createElement("p")
+    txt.innerHTML = imgobj.name + "<br>" + imgobj.width + " × " + imgobj.height
+    
+    if (imgobj.size) {
+        let sz = String(imgobj.size)
+        let chunks = []
+        
+        if (sz.length%3 !== 0) {chunks.push(sz.slice(0,sz.length%3))}
+        
+        for (let ct=sz.length%3;ct<sz.length;ct+=3) {
+            chunks.push(sz.slice(ct, ct+3))
+        }
+        txt.innerHTML += "<br>" + chunks.join(",") + " bytes"
+        
+    }
+    if (imgobj.type) {
+        txt.innerHTML += "<br>" + imgobj.type.slice(6).toUpperCase() + " Image"
+    }    
+    txt.className = "thumbnaildescription"
+    
+    s.appendChild(p)
+    cont.appendChild(s)
+    cont.appendChild(txt)
+    
+    
+    GetId("thumbnails").appendChild(cont)
+    
+    //Revoke the Object URL
+    function revokeurl(){
+        URL.revokeObjectURL(this.src)
+        this.removeEventListener("load", revokeurl)
+    }
+    p.addEventListener("load", revokeurl)
+    
+    
+    
+    
+}    
+    
+    
+    
+    
+let createcanvas = async function(data) {
+    
+    //FileReader is supported in web workers, except in Internet Explorer, Safari, and Edge.
+    
+    let readfile = async function(file) {
+        let reader = new FileReader()
+        return new Promise(function(resolve, reject){
+            reader.onload = function() {
+                resolve(reader.result)
+            };
+            reader.readAsDataURL(file)
+        })
+    }
+    
+    
+    let obj = {}
+    
+    if (data instanceof File) {
+        obj.name = data.name
+        obj.size = data.size
+        obj.type = data.type
+        obj.lastmodified = data.lastModified
+        
+        data = await readfile(data)
+    }
+    
+    //console.log(data)
+    
+    let img;
+    if (data instanceof HTMLImageElement) {
+        img = data
+        let url = img.src
+        obj.name = url.slice(url.lastIndexOf("/")+1)
+        
+        //Sneaky way to get size and type - if fetch supported
+        if (fetch) {
+        let resp = await fetch(url)
+        resp = await resp.blob()
+        obj.size = resp.size
+        obj.type = resp.type
+        }
+        
+    }
+    else {
+        img = new Image()
+        img.src = data
+        await new Promise(function(resolve, reject){
+            img.addEventListener("load", resolve)
+            img.addEventListener("error", reject)
+        })
+    }
+    
+
+
+    
+    obj.width = img.naturalWidth
+    obj.height = img.naturalHeight
+    
+    
+    let canvas = document.createElement("canvas")
+    canvas.width = obj.width
+    canvas.height = obj.height
+    
+    canvas.getContext("2d").drawImage(img,0,0)
+        
+    obj.canvas = canvas
+    return obj
+}
+    
+    
+    
+    
+
+
+//Handle input type selectors
+GetId("computer").addEventListener("click", computerinput)
+GetId("url").addEventListener("click", urlinput)
+  
+function urlinput() {
+    let fd = GetId("computer")
+    let url = GetId("url")
+    fd.classList.remove("selected")
+    url.classList.add("selected")
+    GetId("filedrop").style.display = "none"
+    GetId("urlselector").style.display = "block"
+}
+ 
+function computerinput() {
+    let fd = GetId("computer")
+    let url = GetId("url")
+    fd.classList.add("selected")
+    url.classList.remove("selected")
+    GetId("filedrop").style.display = "block"
+    GetId("urlselector").style.display = "none"
+}
+
+
+
+//File from URL
+GetId("fileurl").addEventListener("keydown", function(){
+    setTimeout(urlchanged, 50, this)
+})
+                                  
+function urlchanged(elem) {
+    let prev = GetId("urlpreview")
+    let submit = GetId("submiturl")
+    
+    prev.src = GetId("fileurl").value
+        
+    prev.style.display = "block"
+    submit.disabled = "disabled"
+    //When the image successfully loads
+    prev.addEventListener("load", function(){
+        submit.removeAttribute("disabled")
+        submit.innerHTML = "Add Image"
+    })
+    prev.addEventListener("error", function(){
+        prev.style.display = "none"
+        submit.innerHTML = "Error Loading"
+    })
+}
+         
+GetId("submiturl").addEventListener("click", submiturl)
+
+function submiturl() {
+    let img = GetId("urlpreview")
+    newfiles(img)
+    img.style.display = "none"
+}
+    
+    
+//Handle File Input Button
+GetId("fileinput").addEventListener("change", function(){
+    console.log("Ran")
+    newfiles(this.files)
+})
+        
+
+//File Drag and Drop
+let droparea = GetId('filedrop')
+
+
+;['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  droparea.addEventListener(eventName, preventDefaults, false)
+})
+
+function preventDefaults (e) {
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+;['dragenter', 'dragover'].forEach(eventName => {
+  droparea.addEventListener(eventName, highlight, false)
+})
+
+;['dragleave', 'drop'].forEach(eventName => {
+  droparea.addEventListener(eventName, unhighlight, false)
+})
+
+function highlight(e) {
+  droparea.classList.add('highlight')
+}
+
+function unhighlight(e) {
+  droparea.classList.remove('highlight')
+}    
+    
+droparea.addEventListener('drop', imagedropped, false)
+
+function imagedropped(e) {
+  let dt = e.dataTransfer
+  let files = dt.files
+
+  newfiles(files)
+}
+    
+    
+    
+    
+
+
+</script>
+
+<style>
+/*NOTE: calc(100%-100px) is invalid. A space must be in between values and operators. ex: calc(100% - 100px)*/
+body {
+    margin:0;
+}
+    
+.thumbnailcontainer {
+    width:100px;
+    height:100px;
+    display:inline-block;
+}
+    
+.thumbnail {
+    width:auto;
+    height:auto;
+    max-width:100px;
+    max-height:100px;
+    display:inline-block;
+    float:left;
+}
+    
+.thumbnaildescription {
+    width:220px;
+    height:100px;
+    overflow:hidden;
+    word-break:break-word;
+    display:inline-block;
+    vertical-align:top;
+}
+    
+.previewcontainer {
+    width:320px;
+    height:100px;
+    display:inline-block;
+    vertical-align:top;
+    border: 1px solid #ccc;
+}
+    
+#fileurl {
+    width:90%;
+    display:block;
+    margin:auto;
+}
+    
+#urlpreview {
+    width:auto;
+    height:auto;
+    max-width:320px;
+    max-height:250px;
+    display:block;
+    margin:auto;
+    margin-top:10px;
+    margin-bottom:10px;
+}
+    
+#filedrop, #urlselector {
+  border: 2px dashed #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  width: 320px;
+  height:auto;
+  max-height:400px;
+  margin:auto;
+  background-color:#eef;
+  text-align:center;
+}
+    
+#filedrop.highlight {
+  border-color: purple;
+}
+    
+#fileinputlabel {
+  display: inline-block;
+  padding: 10px;
+  background: #ccc;
+  cursor: pointer;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+        
+#fileinputlabel:hover {
+  background: #ddd;
+}
+    
+#fileinput, #urlselector {
+  display: none;
+}
+    
+#url, #computer {
+    padding:4px;
+    margin:2px;
+    border-radius:4px;
+    background: #fdf;
+    border:0;
+}
+    
+#url:hover, #computer:hover {
+   background-color: #faf;
+}
+
+#url.selected, #computer.selected {
+   background-color:#f9f;
+}
+
+#inputselector {
+    margin-left:calc(50% - 170px);
+    background-color:#aff;
+    display:inline-block;
+    border-radius:4px;
+    padding:2px;
+}
+</style>

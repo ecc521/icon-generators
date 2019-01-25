@@ -1,0 +1,376 @@
+<!-- <img id="image" src="http://127.0.0.1:9999/scratchcat.jpg" crossorigin> -->
+<img id="image" src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Pi-symbol.svg/248px-Pi-symbol.svg.png" crossorigin>
+<script src="https://ecc521.github.io/stuff/libs/JSZip.js"></script>
+<!-- Remember crossorigin attribute when CORS needed -->
+
+<body></body>
+
+
+<script>    
+
+    
+
+let img = function(canvas) {
+    //Also accepts any type of imagedata that can be drawn directly to canvas
+    
+    this._canvas = canvas    //Don't make this truely private - there may be cases people want to access it
+    
+    
+    this.replace = function(callback) {
+        let canvas = this._canvas
+        let context = canvas.getContext("2d")
+        let imgdata = context.getImageData(0,0,canvas.width,canvas.height)
+        let data = imgdata.data  
+        
+        for (let c=0;c<data.length;c+=4) {
+            let arr = callback(data[c],data[c+1],data[c+2],data[c+3])
+            data[c] = arr[0]
+            data[c+1] = arr[1]
+            data[c+2] = arr[2]
+            data[c+3] = arr[3]
+        }
+        
+        let newcanvas = this.blankcanvas()
+        newcanvas.getContext("2d").putImageData(imgdata,0,0)
+        return new img(newcanvas)
+    }
+    
+    
+    
+    
+    //Options is an object
+    //Format is as follows
+    
+    //method: either "stretch" or "pad"
+    //Stretch means to stretch the image out to make it fit the dimensions
+    //Pad means to scale up the image until one dimension is the size it is supposed to be, then
+    //to use up the remaining space by filling in with the transparent, or the specified color, equally on both sides
+
+    //(Only if pad selected)
+    //color: css color code. Defaults to transparent
+    
+    
+    this.resize = function(width, height, options) {
+                
+        let imgwidth = this._canvas.width,
+            imgheight = this._canvas.height,
+            method = options.method.trim().toLowerCase()        
+        
+        //Generate the new canvas
+        let canvas = this.blankcanvas(width, height)
+        let context = canvas.getContext("2d")
+        
+        //Perform the resizing
+        if (method === "pad") {
+            //Calculate the ratio that we can enlarge without stretching
+            let ratio = Math.min(width/imgwidth, height/imgheight)
+            let drawwidth = imgwidth * ratio
+            let drawheight = imgheight * ratio
+            let xpad = (width-drawwidth)/2
+            let ypad = (height-drawheight)/2
+            
+            context.drawImage(this._canvas, 0, 0, imgwidth, imgheight, xpad, ypad, drawwidth, drawheight);            
+        }
+        else if (method === "stretch") {
+            context.drawImage(this._canvas, 0, 0, imgwidth, imgheight, 0, 0, width, height);
+        }
+            
+        
+
+        //context.drawImage(image, 0, 0, this._canvas.width, this._canvas.height, startdrawx, startdrawy, widthtodraw, heighttodraw);
+
+       
+        
+        return new img(canvas)
+    }
+    
+    
+    //Rotate the canvas. Rotates around center, or optionally, the point x,y
+    //Note - Some of the image may be cut. Consider adding protection against this.
+    this.rotate = function(degrees, x, y) {
+        
+        if (typeof x === "undefined") {
+        x = this._canvas.width/2
+        }
+        if (typeof y === "undefined") {
+        y = this._canvas.width/2
+        }        
+        
+        let canvas = this.blankcanvas()
+        let context = canvas.getContext("2d")
+        
+
+        context.save()
+        context.translate(x,y)
+        context.rotate(degrees * Math.PI / 180)
+        context.translate(-x,-y)
+        context.drawImage(this._canvas, 0, 0)
+        context.restore() //Make sure that the coordinite system remains as it does in a blank canvas
+        
+        return new img(canvas);
+    }
+    
+    
+    
+    
+    
+    //Return a copy of the canvas
+    this.blankcanvas = function(x,y) {
+        let blank = document.createElement("canvas")
+        blank.width = x||this._canvas.width
+        blank.height = y||this._canvas.height
+                
+        return blank;
+    }
+   
+    
+}
+
+
+
+
+
+
+
+window.addEventListener("load", function(){
+
+function GetId(n){return document.getElementById(n)}
+
+
+/*
+var canvas = GetId("canvas");
+canvas.width = 128;
+canvas.height = 128;
+var context = canvas.getContext("2d"); 
+context.fillRect(32, 32, 64, 64); //Middle square.
+    
+    
+var mod = new img(canvas)
+*/
+
+
+var px512 = new img(GetId("image"))    
+    
+
+let squares = []
+let width = []
+let height = []
+
+
+squares = squares.concat([284,142,71,107,89,600,300,150,225,188,1240,620,310,465,388,176,88,44,66,55,256,48,24,16,256,48,24,16,200,100,75,63,50,50,24,30,42,54,16,32,48,64,90,128,256,128,256,512,16,48,270,210,150,120,90,70,50,106,62,44,360,210,150,170,99,71,120,70,50,512,192,144,96,72,48,1024,76,120,152,180,196,160])
+    
+width = width.concat([1240,620,310,465,388,2480,1240,930,775,620,1116,868,620,750,1334,1242,2208,640,768,1024,640,1536,2048])
+height = height.concat([600,300,150,225,188,1200,600,450,375,300,540,420,300,1334,750,2208,1242,960,1024,768,1136,2048,1536])
+
+    
+for (let i=0;i<squares.length;i++) {
+    width.push(squares[i])
+    height.push(squares[i])
+}
+   
+
+//Remove duplicates from the arrays
+//Doesn't fully work
+for (let i=0;i<height.length;i++) {
+    let x = width[i]
+    let y = height[i]
+    //This is really bad time complexity, but shouldn't be an issue
+    
+    for (let i=0;i<height.length;i++) {
+        if (width[i] === x && height[i] === y) {
+            width.splice(i,1)
+            height.splice(i,1)
+        }
+    }
+    
+    width.push(x)
+    height.push(y)
+    
+}    
+    
+    
+    
+    
+    
+window.urilist = []
+
+for (let i=0;i<width.length;i++) {
+    let resized = px512.resize(width[i],height[i], {
+        method:"pad"
+    })
+    
+    //Replace transparent with white
+    resized = resized.replace(function(red,green,blue,alpha){             
+        if (alpha === 0) {
+            red = 255
+            blue = 255
+            green = 255
+            alpha = 255
+        }    
+
+        return [red,green,blue,alpha]
+    })
+    
+    let blob = new Promise(function(resolve){
+        resized._canvas.toBlob(resolve, "image/png")
+    })
+    
+    urilist.push({
+        width:width[i],
+        height:height[i],
+        pixels:width[i]*height[i],
+        blob: blob,
+    })
+    
+}
+    
+
+    console.log(urilist)
+
+    
+    
+
+    
+    
+    
+    
+    
+
+    
+    ;(async function() {
+        let images = []
+        for (let i=0;i<urilist.length;i++) {
+            urilist[i].blob = await urilist[i].blob
+            let obj = urilist[i]
+            let imgobj = {
+                src: URL.createObjectURL(obj.blob),
+                type: "image/png",
+                sizes: obj.width + "x" + obj.height
+            }
+            
+            let img = document.createElement("img")
+            img.src = imgobj.src
+            document.body.appendChild(img)
+            
+            images.push(imgobj)
+        }        
+        console.log(images)
+        
+        
+        console.log(urilist)
+        function compare(a,b) {
+            if (a.blob.size > b.blob.size) {
+                return -1
+            }
+            if (b.blob.size > a.blob.size) {
+                return 1
+            }
+            return 0
+        }
+        urilist = urilist.sort(compare)
+
+        
+        var zip = new JSZip();
+        var folder = zip.folder("Note Images");
+
+        for (let c=0;c<urilist.length;c++) {
+            let size = urilist[c].width + "x" + urilist[c].height;
+            folder.file(size + "-eighth-note.png", urilist[c].blob);
+        }
+        
+        let arr = []
+        let sizelist = {}
+        
+        for (let i=0;i<urilist.length;i++) {
+            let size = urilist[i].width + "x" + urilist[i].height;
+            if (!sizelist.hasOwnProperty(size)) {
+                arr.push({
+                    sizes:size,
+                    src:"/tuner/images/" + size + "-eighth-note.png",
+                    type:"image/png"
+                })
+                sizelist[size] = size
+            }
+        }
+        arr = arr.reverse() //Make small images appear first... Just because
+        folder.file("arrayformanifest.json", JSON.stringify(arr))
+        
+        
+        
+        
+        let content = await folder.generateAsync({
+            type: "blob",
+            compression: "DEFLATE",
+            compressionOptions: {
+                level: 9
+            }
+        })
+
+
+        var link = document.createElement("a");
+        document.body.appendChild(link);
+
+        link.download = "noteimages.zip"
+        link.href = URL.createObjectURL(content);
+        link.click();
+
+        document.body.removeChild(link);
+}())
+    
+})
+
+    
+    
+/*
+
+
+
+
+
+
+
+	  <link rel="shortcut icon" type="image/png" sizes="16x16" href="/resources/icons/16x16-Water-Drop.png"/>
+	  <link rel="shortcut icon" type="image/png" sizes="24x24" href="/resources/icons/24x24-Water-Drop.png"/>
+	  <link rel="shortcut icon" type="image/png" sizes="32x32" href="/resources/icons/32x32-Water-Drop.png"/>
+	  <link rel="shortcut icon" type="image/png" sizes="64x64" href="/resources/icons/64x64-Water-Drop.png"/>
+	  <link rel="shortcut icon" type="image/png" sizes="96x96" href="/resources/icons/96x96-Water-Drop.png"/>
+	  <link rel="shortcut icon" type="image/png" sizes="160x160" href="/resources/icons/160x160-Water-Drop.png"/>
+	  <link rel="shortcut icon" type="image/png" sizes="196x196" href="/resources/icons/196x196-Water-Drop.png"/>
+
+	  <!-- iOS is WAY too picky -->
+	  <link rel="apple-touch-icon" type="image/png" href="/resources/icons/57x57-Water-Drop.png"/>
+	  <link rel="apple-touch-icon" type="image/png" sizes="114x114" href="/resources/icons/114x114-Water-Drop.png"/>
+	  <link rel="apple-touch-icon" type="image/png" sizes="144x144" href="/resources/icons/144x144-Water-Drop.png"/>
+	  <link rel="apple-touch-icon" type="image/png" sizes="60x60" href="/resources/icons/60x60-Water-Drop.png"/>
+	  <link rel="apple-touch-icon" type="image/png" sizes="120x120" href="/resources/icons/120x120-Water-Drop.png"/>
+	  <link rel="apple-touch-icon" type="image/png" sizes="76x76" href="/resources/icons/76x76-Water-Drop.png"/>
+	  <link rel="apple-touch-icon" type="image/png" sizes="152x152" href="/resources/icons/152x152-Water-Drop.png"/>
+	  <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="/resources/icons/180x180-Water-Drop.png"/>
+
+	  <!-- Make sure we have a launch image and can be added -->
+	  <meta name="apple-mobile-web-app-capable" content="yes">
+	  <link rel="apple-touch-startup-image" href="/resources/icons/512x512-Water-Drop.png">
+
+
+
+
+<link rel="apple-touch-startup-image" href="images/splash/launch-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="images/splash/launch-750x1294.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="images/splash/launch-1242x2148.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="images/splash/launch-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="images/splash/launch-1536x2048.png" media="(min-device-width: 768px) and (max-device-width: 1024px) and (-webkit-min-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="images/splash/launch-1668x2224.png" media="(min-device-width: 834px) and (max-device-width: 834px) and (-webkit-min-device-pixel-ratio: 2) and (orientation: portrait)">
+<link rel="apple-touch-startup-image" href="images/splash/launch-2048x2732.png" media="(min-device-width: 1024px) and (max-device-width: 1024px) and (-webkit-min-device-pixel-ratio: 2) and (orientation: portrait)">
+
+
+
+
+
+
+
+
+*/
+    
+</script>
+
+
