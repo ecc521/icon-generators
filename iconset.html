@@ -3,7 +3,10 @@
 
 
 <body></body>
-
+<br><br>
+Open the .zip file. Select in output folder in finder and press spacebar to preview<br>
+@2x images are fakes (identical to the normal ones)<br>
+To create the .icns, type iconutil -c icns path/to/output/folder in terminal<br>
 
 <script>    
 
@@ -208,6 +211,16 @@ async function generateicons() {
             width: 64,
             height: 64,
             scale: 1
+        },
+        {
+            width: 16,
+            height: 16,
+            scale: 1
+        },
+        {
+            width: 128,
+            height: 128,
+            scale: 1
         }
     ]
     
@@ -258,7 +271,7 @@ async function generateicons() {
         var link = document.createElement("a");
         document.body.appendChild(link);
 
-        link.download = "icons.zip"
+        link.download = "icons.iconset.zip"
         link.href = URL.createObjectURL(content);
         link.click();
 
